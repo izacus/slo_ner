@@ -3,10 +3,13 @@ import sys
 import os
 import sllematizer
 
+exceptions = ["leta"]
+
 # Counters
 lines = 0
 candidates = 0
 locations = 0
+names = 0
 
 def get_stopwords():
     f = open("stopwords.txt", "rb")
@@ -34,11 +37,32 @@ def load_locations():
     known_locations = [lemmatizer.lemmatize(word).lower() for word in known_locations]
     return set(known_locations)
 
+def load_names():
+    names = []
+    lemmatizer = get_lemmatizer()
+
+    f = open("imena.txt", "rb")
+    for line in f:
+        line = line.decode("utf-8").strip()
+        line = lemmatizer.lemmatize(line)
+        names.append(line.lower())
+    f.close()
+
+    f = open("priimki.txt", "rb")
+    for line in f:
+        line = line.decode("utf-8").strip()
+        line = lemmatizer.lemmatize(line)
+        names.append(line.lower())
+    f.close()
+
+    return set(names)
+
 f_path = sys.argv[1]
 print "Opening file", f_path
 
 stopwords = get_stopwords()
 known_locations = load_locations()
+known_names = load_names()
 
 in_file = open(f_path, "rb")
 out_file = open("tagged.txt", "wb")
@@ -52,23 +76,24 @@ for line in in_file:
     cls = "O"
 
     if is_line_candidate(line):
-       if line.lower() in stopwords:
-           continue
-          
-       if len(line) < 3:
-           continue
+       if line.lower() not in stopwords and \
+          len(line) > 3 and \
+          line.lower() not in exceptions:
+         
 
-       line_lem = lemmatizer.lemmatize(line)
-       candidates += 1
+           line_lem = lemmatizer.lemmatize(line)
+           candidates += 1
 
-       # Check if it's a know location
-       if line_lem.lower() in known_locations:
-          cls = "LOC"
-          locations += 1
-
+           if line_lem.lower() in known_names:
+              cls = "PERSON"
+              names += 1
+           # Check if it's a know location
+           elif line_lem.lower() in known_locations:
+              cls = "LOC"
+              locations += 1
     out_file.write("%s\t%s\n" % (line.encode("utf-8"), cls,))
 
 out_file.close()
 
 print "Lines", lines, "Candidates", candidates
-print "Locations", locations
+print "Locations", locations, "Names", names
